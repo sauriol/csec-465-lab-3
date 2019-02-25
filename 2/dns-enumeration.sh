@@ -1,10 +1,6 @@
 #!/bin/bash
 # A DNS enumeration tool that takes a file containing a list of hostnames and
 # returning the IP addresses of the hosts
-#
-# TODO
-#   - Add option parsing
-#       - Different output modes (just addressess, addresses with errors, ...)
 
 usage() { echo "Usage: $0 [-4|-6] [-l] [-e] hosts-file" 1>&2; exit 1; }
 
@@ -40,7 +36,7 @@ if [ "$#" -ne 1 ]; then
     usage
 fi
 
-while read line; do
+while read -r line; do
     addrs=$(getent $hosts $line | awk '{ print $1 }' | uniq)
 
     if [ -z "$addrs" ]; then
@@ -49,10 +45,10 @@ while read line; do
         fi
     else
         if [ $mode == "long" ]; then
-            echo $line: $addrs
+            echo "$line": $addrs
         elif [ $mode == "short" ]; then
             echo "$addrs"
         fi
     fi
 
-done < $1
+done < "$1"
