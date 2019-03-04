@@ -55,7 +55,15 @@ elif [[ "$1" =~ $range ]]; then
         ping_host $(int_to_ip $int)
     done
 elif [[ $1 =~ $cidr ]]; then
-    echo valid cidr
+    net=$(echo $1 | cut -d/ -f1)
+    mask=$(echo $1 | cut -d/ -f2)
+
+    first=$(ip_to_int $net)
+    last=$(( first | ((1 << (32 - mask)) - 1)))
+
+    for int in $(seq $first $last); do
+        ping_host $(int_to_ip $int)
+    done
 else
     usage
 fi
