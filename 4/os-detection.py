@@ -14,7 +14,16 @@ def main():
     addrs = f.read().strip().split('\n')
 
     for addr in addrs:
-        print(addr)
+        sent = IP(dst=addr)/ICMP()
+        rep = sr1(IP(dst=addr)/ICMP(code=61), timeout=1, verbose=0)
+
+        if rep:
+            print(addr + ':')
+
+            if rep.ttl > 64 and rep.ttl <= 128:
+                print('\tWindows')
+            elif rep.ttl > 32 and rep.ttl <= 64:
+                print('\tLinux')
 
 
 
