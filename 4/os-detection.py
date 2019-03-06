@@ -1,19 +1,22 @@
 #!/usr/bin/python3
 import sys
+import argparse
 from scapy.all import *
 
 
 def main():
-    if len(sys.argv) < 2:
-        print('No file passed, reading from STDIN')
-        f = sys.stdin
-    else:
-        print('Reading from ' + sys.argv[1])
-        f = open(sys.argv[1])
+    parser = argparse.ArgumentParser(description='An OS classification tool which differentiates between Windows and Linux')
+    parser.add_argument('file', nargs='?', type=argparse.FileType('r'),
+            default=sys.stdin)
+    parser.add_argument('--verbose', '-v', dest='verbose', action='store_true',
+            help='Print connection debugging output')
+    args = parser.parse_args()
 
-    addrs = f.read().strip().split('\n')
+    addrs = args.file.read().strip().split('\n')
 
     for addr in addrs:
+        if args.verbose: print('Connecting to {}'.format(addr))
+
         sent = IP(dst=addr)/ICMP()
         rep = sr1(IP(dst=addr)/ICMP(), timeout=1, verbose=0)
 
@@ -24,6 +27,8 @@ def main():
                 print('{}: Linux'.format(addr))
             else:
                 print('{}: FreeBSD'.format(addr))
+        else:
+            if args.verbose: print('Connection to {} failed'.format(addr))
 
 
 if __name__ == '__main__':
