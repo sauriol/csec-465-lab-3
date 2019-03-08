@@ -1,51 +1,102 @@
-$IPone = "129.21.137.10".Split('.') 
-$IPtwo = "129.21.137.25".Split('.') 
+param (
+    [Parameter(Mandatory=$true)]$AddressRange,
+    [Parameter(Mandatory=$true)]$PortRange
+)
 
-$portOne = 1
-$portTwo = 100
-$portRange = ([int]$portOne)..([int]$portTwo)
-##$timeout_ms = 1
+function IP-Range {
+    param (
+        [parameter(Mandatory=$true, Position=0)][System.Net.IPAddress]$Begin,
+        [parameter(Mandatory=$true, Position=1)][System.Net.IPAddress]$End
+    )
 
-$IPrange = ([int]$IPone[3])..([int]$IPtwo[3])
+    $ip1 = $Begin.GetAddressBytes()
+    [Array]::Reverse($ip1)
+    $ip1 = ([System.Net.IPAddress]($ip1 -join '.')).Address
 
-foreach($r in $IPrange)
-{
-    $lastOctect = [String]($r)
-    $ip = "{0}.{1}.{2}.{3}" -F $IPone[0],$IPone[1],$IPone[2],$lastOctect
+    $ip2 = $End.GetAddressBytes()
+    [Array]::Reverse($ip2)
+    $ip2 = ([System.Net.IPAddress]($ip2 -join '.')).Address
 
-    if (Test-Connection -BufferSize 32 -Count 1 -Quiet -ComputerName $ip)
-    {
-        " "
-        "=========================================================================="
-        Write-Host "$ip has a connection, checking for open ports in range $portOne - $portTwo"
+    for ($x = $ip1; $x -le $ip2; $x++) {
+        $ip = ([System.Net.IPAddress]$x).GetAddressBytes()
+        [Array]::Reverse($ip)
+        $ip -join '.'
+    }
+}
 
-        foreach ($port in $portRange)
-        {
+function CIDR-Range {
+    param (
+        [parameter(Mandatory=$true, Position=0)][System.Net.IPAddress]$Begin,
+        [parameter(Mandatory=$true, Position=1)][int]$CIDR
+    )
+
+    $bytes = $Begin.GetAddressBytes()
+    [Array]::Reverse($bytes)
+
+    $ip1 = [uint32]([System.Net.IPAddress]$bytes).Address
+
+    $End = ([System.Net.IPAddress](($ip1 -bor (1 -shl (32 - $CIDR))) - 1)).GetAddressBytes()
+
+    $ip2 = [uint32]([System.Net.IPAddress]$End).Address
+
+    for ($x = $ip1; $x -le $ip2; $x++) {
+        $ip = ([System.Net.IPAddress]$x).GetAddressBytes()
+        [Array]::Reverse($ip)
+        $ip -join '.'
+    }
+    
+}
+
+if ($AddressRange -match '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$') {
+    $Addrs = IP-Range -Begin $AddressRange -End $AddressRange
+}
+ElseIf ($AddressRange -match '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}-[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$') {
+    $range = $AddressRange -split '-'
+    $Addrs = IP-Range -Begin $range[0] -End $range[1]
+}
+ElseIf ($AddressRange -match '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}$') {
+    $cidr = $AddressRange -split '/'
+    $Addrs = CIDR-Range $cidr[0] $cidr[1]
+}
+Else {
+    Write-Output 'Error: $AddressRange must be a valid range'
+    exit 1
+}
+
+If ($PortRange -match '^\d*$') {
+    $Ports = @($PortRange)
+}
+ElseIf ($PortRange -match '^([\d+]+,*)*$') {
+    $Ports = @($PortRange -split ',')
+}
+ElseIf ($PortRange -match '^\d*-\d*$') {
+    $range = $PortRange -split '-'
+    $Ports = ($range[0]..$range[1])
+}
+Else {
+    Write-Output 'Error: $PortRange must be a valid range'
+    exit 2
+}
+
+foreach ($addr in $Addrs) {
+    If (Test-Connection -BufferSize 32 -Count 1 -Quiet -ComputerName $addr) {
+        Write-Output "IP $addr is alive, checking ports..."
+
+        foreach ($port in $Ports) {
             $ErrorActionPreference = 'SilentlyContinue'
             $socket = new-object System.Net.Sockets.TcpClient
-            $connect = $socket.BeginConnect($ip, $port, $null, $null)
-            $tryconnect = Measure-Command { $success = $connect }
-            
-### Leaving time part out for now ###
-            #.AsyncWaitHandle.WaitOne($timeout_ms, $true) } | % totalmilliseconds
-            #$tryconnect | Out-Null
+            $socket.Connect($addr, $port)
 
-            if ($socket.Connected)
-            {
-                "$ip is listening on port $port" #(Response Time: $tryconnect ms)"
+            if ($socket.Connected) {
+                Write-Output "`tPort $port is open"
+
                 $socket.Close()
                 $socket.Dispose()
                 $socket = $null
             }
-            $ErrorActionPreference = 'Continue'
         }
-        "=========================================================================="
     }
-    else 
-    {
-        " "
-        "=========================================================================="
-        Write-Host "$ip has no connection..."
-        "=========================================================================="
+    Else {
+        Write-Output "IP $addr is dead"
     }
 }
