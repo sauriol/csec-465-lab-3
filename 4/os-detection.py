@@ -5,6 +5,7 @@ from scapy.all import *
 
 
 def main():
+    # Set up arguments
     parser = argparse.ArgumentParser(description='An OS classification tool which differentiates between Windows and Linux')
     parser.add_argument('file', nargs='?', type=argparse.FileType('r'),
             default=sys.stdin)
@@ -17,9 +18,12 @@ def main():
     for addr in addrs:
         if args.verbose: print('Connecting to {}'.format(addr))
 
-        sent = IP(dst=addr)/ICMP()
+        # Build ICMP packet
         rep = sr1(IP(dst=addr)/ICMP(), timeout=1, verbose=0)
 
+        # Check TTL
+        # TODO?: Give the ICMP packet a bad code and check value on return
+        #   - Windows will return a valid code, Linux will return the same code
         if rep:
             if rep.ttl > 64 and rep.ttl <= 128:
                 print('{}: Windows'.format(addr))

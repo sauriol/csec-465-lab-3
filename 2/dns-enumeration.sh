@@ -4,10 +4,12 @@
 
 usage() { echo "Usage: $0 [-4|-6] [-l] [-e] hosts-file" 1>&2; exit 1; }
 
+# Set up default variables
 hosts="ahosts"
 mode="short"
 errors=1
 
+# Parse options with getopts
 while getopts "46le" opt; do
     case ${opt} in
         4 )
@@ -37,8 +39,11 @@ if [ "$#" -ne 1 ]; then
 fi
 
 while read -r line; do
+    # getent ahosts is the closest thing to a builtin I could find
+    # Only display unique addresses
     addrs=$(getent $hosts $line | awk '{ print $1 }' | uniq)
 
+    # Output based on verbosity
     if [ -z "$addrs" ]; then
         if [ $errors -eq 0 ]; then
             (echo "Error: no entry for $line" 1>&2)

@@ -5,6 +5,7 @@ usage() {
     exit 1
 }
 
+# Convert an IP address to an integer
 ip_to_int() {
     local ip="$1"
     local w=$(echo "$ip" | cut -d. -f1)
@@ -17,6 +18,7 @@ ip_to_int() {
     echo "$int"
 }
 
+# Convert an integer to an IP address
 int_to_ip() {
     local int="$1"
 
@@ -38,13 +40,14 @@ fi
 
 timeout=0.1
 
+# Regexes for parsing arguments
 ip="^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$"
 range="^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}-[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$"
 cidr="^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}$"
 
-if [[ "$1" =~ $ip ]]; then
+if [[ "$1" =~ $ip ]]; then          # 1 IP case
     ping_host "$1"
-elif [[ "$1" =~ $range ]]; then
+elif [[ "$1" =~ $range ]]; then     # Range of IPs
     begin=$(echo "$1" | cut -d- -f1)
     end=$(echo "$1" | cut -d- -f2)
 
@@ -54,10 +57,11 @@ elif [[ "$1" =~ $range ]]; then
     for int in $(seq "$first" "$last"); do
         ping_host "$(int_to_ip "$int")"
     done
-elif [[ $1 =~ $cidr ]]; then
+elif [[ $1 =~ $cidr ]]; then        # CIDR notation
     net=$(echo "$1" | cut -d/ -f1)
     mask=$(echo "$1" | cut -d/ -f2)
 
+    # Calculate beginning and end of range of addresses
     first=$(ip_to_int "$net")
     last=$(( first | ((1 << (32 - mask)) - 1)))
 
