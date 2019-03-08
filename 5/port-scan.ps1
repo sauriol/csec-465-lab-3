@@ -1,8 +1,10 @@
-$IPone = "129.21.137.172".Split('.') 
-$IPtwo = "129.21.137.200".Split('.') 
+$IPone = "129.21.137.10".Split('.') 
+$IPtwo = "129.21.137.25".Split('.') 
 
-$portRange = 1..500
-$timeout_ms = 5
+$portOne = 1
+$portTwo = 100
+$portRange = ([int]$portOne)..([int]$portTwo)
+##$timeout_ms = 1
 
 $IPrange = ([int]$IPone[3])..([int]$IPtwo[3])
 
@@ -15,20 +17,22 @@ foreach($r in $IPrange)
     {
         " "
         "=========================================================================="
-        Write-Host "IP $ip is alive... checking ports..."
+        Write-Host "$ip has a connection, checking for open ports in range $portOne - $portTwo"
 
         foreach ($port in $portRange)
         {
             $ErrorActionPreference = 'SilentlyContinue'
             $socket = new-object System.Net.Sockets.TcpClient
             $connect = $socket.BeginConnect($ip, $port, $null, $null)
-            $tryconnect = Measure-Command { $success = $connect.AsyncWaitHandle.
-            WaitOne($timeout_ms, $true) } | % totalmilliseconds
-            $tryconnect | Out-Null
+            $tryconnect = Measure-Command { $success = $connect }
+            
+### Leaving time part out for now ###
+            #.AsyncWaitHandle.WaitOne($timeout_ms, $true) } | % totalmilliseconds
+            #$tryconnect | Out-Null
 
             if ($socket.Connected)
             {
-                "$ip is listening on port $port (Response Time: $tryconnect ms)"
+                "$ip is listening on port $port" #(Response Time: $tryconnect ms)"
                 $socket.Close()
                 $socket.Dispose()
                 $socket = $null
@@ -41,7 +45,7 @@ foreach($r in $IPrange)
     {
         " "
         "=========================================================================="
-        Write-Host "IP $ip has no connection..."
+        Write-Host "$ip has no connection..."
         "=========================================================================="
     }
 }
